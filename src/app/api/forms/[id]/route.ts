@@ -1,0 +1,23 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getFormData } from "@/lib/storage";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const formId = params.id;
+    if (!formId) {
+      return NextResponse.json({ success: false, error: "شناسه فرم الزامی است." }, { status: 400 });
+    }
+
+    const data = await getFormData(formId);
+    if (!data) {
+      return NextResponse.json({ success: false, error: "فرم یافت نشد." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "خطا در دریافت اطلاعات فرم." }, { status: 500 });
+  }
+}
