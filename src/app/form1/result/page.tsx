@@ -155,19 +155,31 @@ export default function AdminResultPage() {
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-iransans">
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-[#0d1322] px-4 sm:px-6 h-16 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <Link href="/form1" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
-            <ArrowRight className="w-4 h-4" />
-            <span className="text-xs">بازگشت به فرم</span>
-          </Link>
-          <div className="h-4 w-[1px] bg-slate-700 mx-2" />
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-indigo-400" />
+      <header className="sticky top-0 z-40 w-full bg-[#0a0e17]/85 backdrop-blur-xl border-b border-white/[0.06] px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link href="/form1" className="flex items-center gap-2.5 group select-none">
+            <Image
+              src="/icon.svg"
+              alt="TalentNet Logo"
+              width={30}
+              height={30}
+              className="w-7 h-7 object-contain drop-shadow-[0_2px_10px_rgba(223,45,216,0.35)] group-hover:scale-105 transition-all"
+            />
             <span className="font-morabba font-bold text-base text-white">
-              پنل مدیریت و نتایج TalentNet Form
+              TalentNet
             </span>
-          </div>
+            <span className="text-xs font-mono text-indigo-400">
+              Admin
+            </span>
+          </Link>
+          <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+          <Link
+            href="/form1"
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">بازگشت به فرم</span>
+          </Link>
         </div>
 
         {isAuthenticated && (

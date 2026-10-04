@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2, Loader2, AlertCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import { Loader2, RefreshCw, ShieldCheck, Check, Copy } from "lucide-react";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -19,96 +19,126 @@ export const Header: React.FC<HeaderProps> = ({
   saveStatus = "idle",
   onRetrySave,
   formId,
-  currentStep,
-  totalSteps,
 }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyId = () => {
+    if (!formId) return;
+    navigator.clipboard.writeText(formId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-[#0b0f19]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full bg-[#0a0e17]/85 backdrop-blur-xl border-b border-white/[0.06] transition-all">
+      {/* Subtle top edge glow */}
+      <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent pointer-events-none" />
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Brand Logo & Name */}
-        <div className="flex items-center gap-3">
-          <Link href="/form1" className="flex items-center gap-3 group">
-            <div className="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-indigo-400 p-[1.5px] shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-all">
-              <div className="w-full h-full bg-[#0b0f19] rounded-[10px] flex items-center justify-center overflow-hidden">
-                <Image
-                  src="/icon.svg"
-                  alt="TalentNet Logo"
-                  width={24}
-                  height={24}
-                  className="w-6 h-6 object-contain"
-                  priority
-                />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-morabba font-bold text-lg text-white tracking-wide">
-                  TalentNet Form
-                </span>
-                <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium">
-                  نیازسنجی پروژه
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-400 font-iransans">
-                پلتفرم مشاوره روان‌شناسی آنلاین
-              </span>
-            </div>
-          </Link>
-        </div>
+        {/* Brand: Pure Logo & Elegant Typography */}
+        <Link
+          href="/form1"
+          className="flex items-center gap-3.5 group select-none"
+        >
+          {/* Pure SVG Logo with natural soft aura, completely borderless */}
+          <div className="relative flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-105">
+            <Image
+              src="/icon.svg"
+              alt="TalentNet Logo"
+              width={34}
+              height={34}
+              className="w-8 h-8 sm:w-[34px] sm:h-[34px] object-contain drop-shadow-[0_2px_12px_rgba(223,45,216,0.35)] group-hover:drop-shadow-[0_4px_18px_rgba(223,45,216,0.55)] transition-all duration-300"
+              priority
+            />
+          </div>
 
-        {/* Status Indicators */}
-        <div className="flex items-center gap-3 text-xs">
+          {/* Clean Typography */}
+          <div className="flex items-baseline gap-2">
+            <span className="font-morabba font-bold text-lg sm:text-xl text-white tracking-wide">
+              TalentNet
+            </span>
+            <span className="text-xs sm:text-sm font-light text-indigo-400 font-mono tracking-wider">
+              Form
+            </span>
+            <span className="hidden md:inline-block text-[11px] text-slate-500 font-iransans border-r border-slate-800 pr-2 mr-1">
+              پرسش‌نامه شفاف‌سازی پروژه
+            </span>
+          </div>
+        </Link>
+
+        {/* Right side: Minimalist Status & Controls */}
+        <div className="flex items-center gap-4 text-xs font-iransans">
+          {/* Form ID Minimal Tag */}
           {formId && (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/50 border border-slate-700/60 text-slate-300 font-mono text-[11px]">
-              <span className="text-slate-500 font-iransans">شناسه:</span>
-              <span className="font-semibold text-indigo-300 tracking-wider">
-                {formId.slice(0, 8)}...
+            <button
+              type="button"
+              onClick={handleCopyId}
+              title="برای کپی شناسه کلیک کنید"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 border border-white/[0.05] transition-all cursor-pointer group"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400/80 group-hover:bg-indigo-300" />
+              <span className="font-mono text-[11px] text-slate-300">
+                {formId.slice(0, 10)}
               </span>
-            </div>
-          )}
-
-          {/* Save Status Badge */}
-          {saveStatus === "saving" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>در حال ذخیره...</span>
-            </div>
-          )}
-
-          {saveStatus === "saved" && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>ذخیره شد ✓</span>
-            </div>
-          )}
-
-          {saveStatus === "error" && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>ذخیره ناموفق</span>
-              </div>
-              {onRetrySave && (
-                <button
-                  onClick={onRetrySave}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium transition-colors"
-                  title="تلاش مجدد برای ذخیره"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>تلاش مجدد</span>
-                </button>
+              {copied ? (
+                <Check className="w-3 h-3 text-emerald-400 mr-0.5" />
+              ) : (
+                <Copy className="w-3 h-3 text-slate-500 group-hover:text-slate-300 mr-0.5" />
               )}
-            </div>
+            </button>
           )}
 
-          {/* Admin link shortcut */}
+          {/* Live Auto-Save Ambient Indicator */}
+          <div className="flex items-center">
+            {saveStatus === "saving" && (
+              <div className="flex items-center gap-2 text-amber-300/90 text-xs">
+                <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                <span className="text-[11px] hidden sm:inline">در حال ذخیره...</span>
+              </div>
+            )}
+
+            {saveStatus === "saved" && (
+              <div className="flex items-center gap-2 text-slate-400 text-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+                </span>
+                <span className="text-[11px] text-slate-300">ذخیره شد</span>
+              </div>
+            )}
+
+            {saveStatus === "error" && (
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-[11px] text-rose-300">خطا در ذخیره</span>
+                {onRetrySave && (
+                  <button
+                    onClick={onRetrySave}
+                    className="p-1 text-slate-400 hover:text-rose-300 transition-colors"
+                    title="تلاش دوباره"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {saveStatus === "idle" && (
+              <div className="hidden sm:flex items-center gap-1.5 text-slate-500 text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                <span>همگام با سرور</span>
+              </div>
+            )}
+          </div>
+
+          {/* Admin Result Link */}
           <Link
             href="/form1/result"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all border border-transparent hover:border-slate-700/60"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition-all text-xs border border-transparent hover:border-white/[0.06]"
             title="ورود به پنل نتایج مدیر"
           >
-            <ShieldCheck className="w-4 h-4 text-indigo-400" />
-            <span className="hidden lg:inline text-[11px]">پنل نتایج</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline text-[11px]">پنل نتایج</span>
           </Link>
         </div>
       </div>

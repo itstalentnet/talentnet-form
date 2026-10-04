@@ -71,16 +71,13 @@ export const IntroView: React.FC<IntroViewProps> = ({ onStart, formId }) => {
       <div className="glass-panel rounded-2xl p-6 sm:p-8 mb-8 border border-slate-800 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex items-center gap-3 mb-4 border-b border-slate-800 pb-4">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-sm">
-            ۱
-          </div>
-          <div>
-            <h2 className="font-morabba font-bold text-lg text-slate-100">
+        <div className="flex items-center gap-3 mb-4 border-b border-white/[0.06] pb-4">
+          <div className="flex-1">
+            <h2 className="font-morabba font-bold text-lg sm:text-xl text-white">
               تحلیل و بنچ‌مارک پلتفرم رقیب (Simiaroom - سیمیاروم)
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              یافته‌های کلیدی تیم تحقیق جهت بررسی موقعیت و تمایز محصول شما
+            <p className="text-xs text-slate-400 mt-1 font-iransans">
+              یافته‌های کلیدی تیم تحقیق جهت بررسی موقعیت، مدل درآمدی و تمایز محصول شما
             </p>
           </div>
         </div>
