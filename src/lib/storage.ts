@@ -49,6 +49,7 @@ async function githubRequest(endpoint: string, options: RequestInit = {}) {
   };
 
   const response = await fetch(url, {
+    cache: "no-store",
     ...options,
     headers,
   });
