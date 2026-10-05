@@ -13,10 +13,10 @@ export async function GET(
 
     const data = await getFormData(formId);
     if (!data) {
-      return NextResponse.json({ success: false, error: "فرم یافت نشد." }, { status: 404 });
+      return NextResponse.json({ success: true, data: null, exists: false }, { status: 200 });
     }
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data, exists: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: "خطا در دریافت اطلاعات فرم." }, { status: 500 });
   }
