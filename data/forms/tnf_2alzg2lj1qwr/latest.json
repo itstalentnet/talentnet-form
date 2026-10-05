@@ -1,15 +1,19 @@
 {
   "formId": "tnf_2alzg2lj1qwr",
-  "currentStep": 0,
+  "currentStep": 1,
   "isSubmitted": false,
   "answers": {
     "1": "بازار باز (درمانگران مستقل ثبت‌نام می‌کنند)",
     "2": [
       "قیمت پایین‌تر"
-    ]
+    ],
+    "3": [
+      "مشاوره‌ی فردی"
+    ],
+    "4": "رایگان"
   },
   "otherAnswers": {},
   "createdAt": "2026-10-05T06:43:12.816Z",
-  "updatedAt": "2026-10-05T06:43:15.256Z",
-  "revision": 2
+  "updatedAt": "2026-10-05T06:43:20.798Z",
+  "revision": 3
 }
