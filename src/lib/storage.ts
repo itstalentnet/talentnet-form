@@ -441,3 +441,53 @@ export async function listAllForms(): Promise<
 
   return [];
 }
+
+// Delete a form completely from SQLite database and local disk
+export async function deleteFormData(formId: string): Promise<{ success: boolean; message: string }> {
+  if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{6,64}$/.test(formId)) {
+    throw new Error("شناسه فرم نامعتبر است.");
+  }
+
+  // 1. Delete from SQLite database
+  try {
+    const db = getDb();
+    db.prepare("DELETE FROM forms WHERE form_id = ?").run(formId);
+    db.prepare("DELETE FROM form_snapshots WHERE form_id = ?").run(formId);
+  } catch (err) {
+    console.error("Error deleting from SQLite:", err);
+  }
+
+  // 2. Delete from local disk
+  try {
+    const formDir = path.join(LOCAL_DATA_DIR, formId);
+    if (fs.existsSync(formDir)) {
+      fs.rmSync(formDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error("Error deleting local form folder:", err);
+  }
+
+  // 3. If token is configured, also attempt to delete from GitHub
+  const { token, branch } = getGitHubConfig();
+  if (token) {
+    try {
+      const latestPath = `data/forms/${formId}/latest.json`;
+      const existing = await getGitHubFile(latestPath);
+      if (existing?.sha) {
+        await githubRequest(`/contents/${latestPath}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `Form ${formId}: deleted from admin panel`,
+            sha: existing.sha,
+            branch,
+          }),
+        });
+      }
+    } catch (err) {
+      console.warn("GitHub deletion warning:", err);
+    }
+  }
+
+  return { success: true, message: `فرم ${formId} با موفقیت از دیتابیس و سرور حذف شد.` };
+}

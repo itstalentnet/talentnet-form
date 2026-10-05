@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   KeyRound,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 
 interface FormSummary {
@@ -148,6 +149,41 @@ export default function AdminResultPage() {
     setSelectedFormId(null);
   };
 
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const handleDeleteForm = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const confirmed = window.confirm(
+      `آیا از حذف کامل فرم «${id}» از دیتابیس سرور اطمینان دارید؟ این عملیات قابل بازگشت نیست.`
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/forms?formId=${id}&secret=${encodeURIComponent(secret)}`, {
+        method: "DELETE",
+        headers: { "x-admin-secret": secret },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setActionMessage(`فرم ${id} با موفقیت از دیتابیس حذف شد.`);
+        setTimeout(() => setActionMessage(null), 3500);
+        if (selectedFormId === id) {
+          setSelectedFormId(null);
+          setSelectedFormData(null);
+        }
+        await verifyAndLoad(secret);
+      } else {
+        alert(data.error || "خطا در حذف فرم");
+      }
+    } catch (err: any) {
+      alert("خطای ارتباط با سرور: " + (err.message || err));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredForms = formsList.filter((f) =>
     f.formId.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -258,140 +294,176 @@ export default function AdminResultPage() {
         </main>
       ) : (
         /* Authenticated Dashboard */
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Sidebar: Forms List (4 Cols) */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
-            {/* Storage status banner */}
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-slate-400 font-medium">وضعیت ذخیره‌سازی ابری:</span>
-                {statusInfo?.github?.connected ? (
-                  <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>متصل به گیت‌هاب</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-amber-400 font-medium">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>محلی / بدون توکن گیت‌هاب</span>
-                  </span>
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-4">
+          {actionMessage && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <span>{actionMessage}</span>
+              </div>
+              <button
+                onClick={() => setActionMessage(null)}
+                className="text-slate-400 hover:text-white text-xs px-2"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Sidebar: Forms List (4 Cols) */}
+            <div className="lg:col-span-4 flex flex-col gap-4">
+              {/* Storage status banner */}
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-slate-400 font-medium">وضعیت ذخیره‌سازی ابری:</span>
+                  {statusInfo?.github?.connected ? (
+                    <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>متصل به گیت‌هاب</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-amber-400 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>محلی / بدون توکن گیت‌هاب</span>
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  {statusInfo?.github?.owner}/{statusInfo?.github?.repo} ({statusInfo?.github?.branch})
+                </div>
+                {statusInfo?.github?.error && (
+                  <div className="mt-2 text-[11px] text-amber-300 bg-amber-950/30 p-2 rounded border border-amber-900/50">
+                    {statusInfo.github.error}
+                  </div>
                 )}
               </div>
-              <div className="text-[11px] text-slate-400 font-mono">
-                {statusInfo?.github?.owner}/{statusInfo?.github?.repo} ({statusInfo?.github?.branch})
+
+              {/* Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="جستجو با شناسه فرم..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
-              {statusInfo?.github?.error && (
-                <div className="mt-2 text-[11px] text-amber-300 bg-amber-950/30 p-2 rounded border border-amber-900/50">
-                  {statusInfo.github.error}
+
+              {/* List */}
+              <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-2 overflow-y-auto max-h-[600px] space-y-1.5">
+                <div className="text-[11px] text-slate-500 px-3 py-1">
+                  تعداد کل فرم‌ها: {formsList.length}
                 </div>
-              )}
-            </div>
 
-            {/* Search Input */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="جستجو با شناسه فرم..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-            </div>
-
-            {/* List */}
-            <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-2 overflow-y-auto max-h-[600px] space-y-1.5">
-              <div className="text-[11px] text-slate-500 px-3 py-1">
-                تعداد کل فرم‌ها: {formsList.length}
+                {filteredForms.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-500">
+                    فرمی یافت نشد.
+                  </div>
+                ) : (
+                  filteredForms.map((item) => {
+                    const isSelected = item.formId === selectedFormId;
+                    return (
+                      <div
+                        key={item.formId}
+                        onClick={() => loadFormDetail(item.formId)}
+                        className={`group w-full text-right p-3 rounded-xl transition-all border cursor-pointer ${
+                          isSelected
+                            ? "bg-indigo-600/20 border-indigo-500 text-white"
+                            : "bg-slate-950/40 border-slate-800/80 text-slate-300 hover:bg-slate-800/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-mono text-xs font-bold text-indigo-300">
+                            {item.formId}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {item.isSubmitted ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                ارسال نهایی
+                              </span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                پیش‌نویس
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteForm(item.formId, e)}
+                              title="حذف کامل از دیتابیس"
+                              className="p-1 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                          <span>نسخه: {item.revision}</span>
+                          <span>{new Date(item.updatedAt).toLocaleDateString("fa-IR")}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
+            </div>
 
-              {filteredForms.length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-500">
-                  فرمی یافت نشد.
+            {/* Details Panel: Form Content (8 Cols) */}
+            <div className="lg:col-span-8 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 overflow-y-auto max-h-[800px]">
+              {!selectedFormData ? (
+                <div className="h-full flex flex-col items-center justify-center p-12 text-slate-500">
+                  <FileText className="w-12 h-12 mb-3 text-slate-600" />
+                  <p className="text-sm">یک فرم را از ستون کناری انتخاب کنید تا جزئیات پاسخ‌ها نمایش داده شود.</p>
                 </div>
               ) : (
-                filteredForms.map((item) => {
-                  const isSelected = item.formId === selectedFormId;
-                  return (
-                    <button
-                      key={item.formId}
-                      onClick={() => loadFormDetail(item.formId)}
-                      className={`w-full text-right p-3 rounded-xl transition-all border ${
-                        isSelected
-                          ? "bg-indigo-600/20 border-indigo-500 text-white"
-                          : "bg-slate-950/40 border-slate-800/80 text-slate-300 hover:bg-slate-800/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-xs font-bold text-indigo-300">
-                          {item.formId}
+                <div>
+                  {/* Form Detail Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5 mb-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="font-morabba font-bold text-xl text-white">
+                          جزئیات فرم:
+                        </h2>
+                        <span className="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2.5 py-0.5 rounded border border-indigo-500/20 text-sm">
+                          {selectedFormData.formId}
                         </span>
-                        {item.isSubmitted ? (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            ارسال نهایی
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            پیش‌نویس
-                          </span>
-                        )}
                       </div>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                        <span>نسخه: {item.revision}</span>
-                        <span>{new Date(item.updatedAt).toLocaleDateString("fa-IR")}</span>
+                      <div className="flex items-center gap-4 text-xs text-slate-400 font-mono">
+                        <span>ایجاد: {new Date(selectedFormData.createdAt).toLocaleString("fa-IR")}</span>
+                        <span>آخرین ذخیره: {new Date(selectedFormData.updatedAt).toLocaleString("fa-IR")}</span>
+                        <span>نسخه: {selectedFormData.revision}</span>
                       </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Details Panel: Form Content (8 Cols) */}
-          <div className="lg:col-span-8 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 overflow-y-auto max-h-[800px]">
-            {!selectedFormData ? (
-              <div className="h-full flex flex-col items-center justify-center p-12 text-slate-500">
-                <FileText className="w-12 h-12 mb-3 text-slate-600" />
-                <p className="text-sm">یک فرم را از ستون کناری انتخاب کنید تا جزئیات پاسخ‌ها نمایش داده شود.</p>
-              </div>
-            ) : (
-              <div>
-                {/* Form Detail Header */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5 mb-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="font-morabba font-bold text-xl text-white">
-                        جزئیات فرم:
-                      </h2>
-                      <span className="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-2.5 py-0.5 rounded border border-indigo-500/20 text-sm">
-                        {selectedFormData.formId}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-slate-400 font-mono">
-                      <span>ایجاد: {new Date(selectedFormData.createdAt).toLocaleString("fa-IR")}</span>
-                      <span>آخرین ذخیره: {new Date(selectedFormData.updatedAt).toLocaleString("fa-IR")}</span>
-                      <span>نسخه: {selectedFormData.revision}</span>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={handleExportJson}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs border border-slate-700 transition-all"
+                      >
+                        <Download className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>خروجی JSON</span>
+                      </button>
+                      <Link
+                        href={`/form1?id=${selectedFormData.formId}`}
+                        target="_blank"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs border border-indigo-500/30 transition-all"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>مشاهده در فرم</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteForm(selectedFormData.formId)}
+                        disabled={isDeleting}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs border border-rose-500/30 transition-all disabled:opacity-50"
+                        title="حذف کامل از دیتابیس سرور"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <span>حذف کامل فرم</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleExportJson}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs border border-slate-700 transition-all"
-                    >
-                      <Download className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>خروجی JSON</span>
-                    </button>
-                    <Link
-                      href={`/form1?id=${selectedFormData.formId}`}
-                      target="_blank"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs border border-indigo-500/30 transition-all"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>مشاهده در فرم</span>
-                    </Link>
-                  </div>
-                </div>
 
                 {/* Answers by Section */}
                 <div className="space-y-8">
@@ -488,8 +560,9 @@ export default function AdminResultPage() {
               </div>
             )}
           </div>
-        </main>
-      )}
-    </div>
-  );
+        </div>
+      </main>
+    )}
+  </div>
+);
 }
