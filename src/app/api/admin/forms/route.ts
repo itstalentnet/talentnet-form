@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listAllForms, getFormData } from "@/lib/storage";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-admin-secret") || req.nextUrl.searchParams.get("secret");
   const expectedSecret = process.env.ADMIN_ACCESS_SECRET || "admin123456";

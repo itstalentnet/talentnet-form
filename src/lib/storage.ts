@@ -21,20 +21,27 @@ export interface StorageResult {
   message?: string;
 }
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_OWNER = process.env.GITHUB_OWNER || "itstalentnet";
-const GITHUB_REPO = process.env.GITHUB_REPO || "talentnet-form";
-const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
+// Dynamically read environment variables on each request
+function getGitHubConfig() {
+  return {
+    token: process.env.GITHUB_TOKEN?.trim(),
+    owner: process.env.GITHUB_OWNER?.trim() || "itstalentnet",
+    repo: process.env.GITHUB_REPO?.trim() || "talentnet-form",
+    branch: process.env.GITHUB_BRANCH?.trim() || "main",
+  };
+}
 
 // Helper: GitHub API request
 async function githubRequest(endpoint: string, options: RequestInit = {}) {
-  if (!GITHUB_TOKEN) {
+  const { token, owner, repo } = getGitHubConfig();
+
+  if (!token) {
     throw new Error("GITHUB_TOKEN is not configured");
   }
 
-  const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}${endpoint}`;
+  const url = `https://api.github.com/repos/${owner}/${repo}${endpoint}`;
   const headers = {
-    Authorization: `Bearer ${GITHUB_TOKEN}`,
+    Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "TalentNet-Form-App",
@@ -57,41 +64,43 @@ export async function testGitHubConnection(): Promise<{
   branch: string;
   error?: string;
 }> {
-  if (!GITHUB_TOKEN) {
+  const { token, owner, repo, branch } = getGitHubConfig();
+
+  if (!token) {
     return {
       connected: false,
-      owner: GITHUB_OWNER,
-      repo: GITHUB_REPO,
-      branch: GITHUB_BRANCH,
-      error: "متغیر GITHUB_TOKEN در محیط سرور تنظیم نشده است.",
+      owner,
+      repo,
+      branch,
+      error: "متغیر GITHUB_TOKEN در فایل .env.local یا محیط سرور تنظیم نشده است.",
     };
   }
 
   try {
-    const res = await githubRequest(`/branches/${GITHUB_BRANCH}`);
+    const res = await githubRequest(`/branches/${branch}`);
     if (res.ok) {
       return {
         connected: true,
-        owner: GITHUB_OWNER,
-        repo: GITHUB_REPO,
-        branch: GITHUB_BRANCH,
+        owner,
+        repo,
+        branch,
       };
     } else {
       const errData = await res.json().catch(() => ({}));
       return {
         connected: false,
-        owner: GITHUB_OWNER,
-        repo: GITHUB_REPO,
-        branch: GITHUB_BRANCH,
-        error: `خطای گیت‌هاب (${res.status}): ${errData.message || res.statusText}`,
+        owner,
+        repo,
+        branch,
+        error: `خطای دسترسی گیت‌هاب (${res.status}): ${errData.message || res.statusText}`,
       };
     }
   } catch (err: any) {
     return {
       connected: false,
-      owner: GITHUB_OWNER,
-      repo: GITHUB_REPO,
-      branch: GITHUB_BRANCH,
+      owner,
+      repo,
+      branch,
       error: err.message || "خطای اتصال به سرور گیت‌هاب",
     };
   }
@@ -99,8 +108,9 @@ export async function testGitHubConnection(): Promise<{
 
 // Get file SHA and content from GitHub if it exists
 async function getGitHubFile(filePath: string): Promise<{ sha?: string; content?: any } | null> {
+  const { branch } = getGitHubConfig();
   try {
-    const res = await githubRequest(`/contents/${filePath}?ref=${GITHUB_BRANCH}`);
+    const res = await githubRequest(`/contents/${filePath}?ref=${branch}`);
     if (res.status === 404) return null;
     if (!res.ok) return null;
 
@@ -117,11 +127,12 @@ async function getGitHubFile(filePath: string): Promise<{ sha?: string; content?
 
 // Put file to GitHub
 async function putGitHubFile(filePath: string, contentObj: any, message: string, sha?: string) {
+  const { branch } = getGitHubConfig();
   const contentBase64 = Buffer.from(JSON.stringify(contentObj, null, 2), "utf-8").toString("base64");
   const body: any = {
     message,
     content: contentBase64,
-    branch: GITHUB_BRANCH,
+    branch,
   };
   if (sha) {
     body.sha = sha;
@@ -180,15 +191,16 @@ export async function saveFormData(
 ): Promise<StorageResult> {
   const { formId } = payload;
   const now = new Date().toISOString();
+  const { token } = getGitHubConfig();
 
   // Validate formId
-  if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{8,64}$/.test(formId)) {
+  if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{6,64}$/.test(formId)) {
     throw new Error("شناسه فرم نامعتبر است.");
   }
 
   const latestPath = `data/forms/${formId}/latest.json`;
 
-  if (GITHUB_TOKEN) {
+  if (token) {
     // 1. Fetch current latest version from GitHub to determine revision and original createdAt
     const existing = await getGitHubFile(latestPath);
     const prevData: FormResponseData | null = existing?.content || null;
@@ -256,13 +268,14 @@ export async function saveFormData(
 
 // Get form data by ID
 export async function getFormData(formId: string): Promise<FormResponseData | null> {
-  if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{8,64}$/.test(formId)) {
+  if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{6,64}$/.test(formId)) {
     return null;
   }
 
+  const { token } = getGitHubConfig();
   const latestPath = `data/forms/${formId}/latest.json`;
 
-  if (GITHUB_TOKEN) {
+  if (token) {
     const file = await getGitHubFile(latestPath);
     return file?.content || null;
   } else {
@@ -280,9 +293,11 @@ export async function getFormData(formId: string): Promise<FormResponseData | nu
 
 // List all forms for admin
 export async function listAllForms(): Promise<Array<{ formId: string; updatedAt: string; revision: number; isSubmitted: boolean }>> {
-  if (GITHUB_TOKEN) {
+  const { token, branch } = getGitHubConfig();
+
+  if (token) {
     try {
-      const res = await githubRequest(`/contents/data/forms?ref=${GITHUB_BRANCH}`);
+      const res = await githubRequest(`/contents/data/forms?ref=${branch}`);
       if (!res.ok) return [];
       const items = await res.json();
       const results: any[] = [];
