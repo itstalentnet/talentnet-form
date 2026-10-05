@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { getDb } from "./db";
 
 export interface FormResponseData {
   formId: string;
@@ -17,8 +18,9 @@ export interface StorageResult {
   formId: string;
   revision: number;
   updatedAt: string;
-  storageType: "github" | "local";
+  storageType: "database" | "github" | "local";
   message?: string;
+  syncedToGit?: boolean;
 }
 
 // Dynamically read environment variables on each request
@@ -155,7 +157,7 @@ async function putGitHubFile(filePath: string, contentObj: any, message: string,
   return res.json();
 }
 
-// Fallback: Local filesystem operations for local development
+// Local filesystem fallback & backup
 const LOCAL_DATA_DIR = path.join(process.cwd(), "data", "forms");
 
 function ensureLocalDir(dirPath: string) {
@@ -164,107 +166,147 @@ function ensureLocalDir(dirPath: string) {
   }
 }
 
-async function saveLocally(data: FormResponseData): Promise<StorageResult> {
-  const formDir = path.join(LOCAL_DATA_DIR, data.formId);
-  const versionsDir = path.join(formDir, "versions");
-  ensureLocalDir(versionsDir);
+function saveLocalFileBackup(data: FormResponseData) {
+  try {
+    const formDir = path.join(LOCAL_DATA_DIR, data.formId);
+    const versionsDir = path.join(formDir, "versions");
+    ensureLocalDir(versionsDir);
 
-  const timestamp = Date.now();
-  const versionFile = path.join(versionsDir, `${timestamp}-rev${data.revision}.json`);
-  const latestFile = path.join(formDir, "latest.json");
+    const timestamp = Date.now();
+    const versionFile = path.join(versionsDir, `${timestamp}-rev${data.revision}.json`);
+    const latestFile = path.join(formDir, "latest.json");
 
-  fs.writeFileSync(versionFile, JSON.stringify(data, null, 2), "utf-8");
-  fs.writeFileSync(latestFile, JSON.stringify(data, null, 2), "utf-8");
-
-  return {
-    success: true,
-    formId: data.formId,
-    revision: data.revision,
-    updatedAt: data.updatedAt,
-    storageType: "local",
-    message: "در حافظه محلی ذخیره شد (GITHUB_TOKEN تنظیم نشده است)",
-  };
+    fs.writeFileSync(versionFile, JSON.stringify(data, null, 2), "utf-8");
+    fs.writeFileSync(latestFile, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Local file backup error:", err);
+  }
 }
 
-// Main save function
+// Sync final submitted form to GitHub (Only called on final submission)
+async function syncFinalVersionToGitHub(fullData: FormResponseData): Promise<boolean> {
+  const { token } = getGitHubConfig();
+  if (!token) return false;
+
+  try {
+    const latestPath = `data/forms/${fullData.formId}/latest.json`;
+    const existing = await getGitHubFile(latestPath);
+
+    // Save final version snapshot
+    const timestamp = Date.now();
+    const versionPath = `data/forms/${fullData.formId}/versions/${timestamp}-rev${fullData.revision}.json`;
+
+    await putGitHubFile(
+      versionPath,
+      fullData,
+      `Form ${fullData.formId}: save submitted snapshot rev ${fullData.revision}`
+    );
+
+    // Save latest
+    await putGitHubFile(
+      latestPath,
+      fullData,
+      `Form ${fullData.formId}: save submitted final rev ${fullData.revision}`,
+      existing?.sha
+    );
+
+    return true;
+  } catch (err: any) {
+    console.error("Failed to sync final version to GitHub:", err?.message || err);
+    return false;
+  }
+}
+
+// Main save function: Primary storage is SQLite Database on Server
 export async function saveFormData(
   payload: Omit<FormResponseData, "createdAt" | "updatedAt" | "revision">
 ): Promise<StorageResult> {
   const { formId } = payload;
   const now = new Date().toISOString();
-  const { token } = getGitHubConfig();
 
   // Validate formId
   if (!formId || typeof formId !== "string" || !/^[a-zA-Z0-9_-]{6,64}$/.test(formId)) {
     throw new Error("شناسه فرم نامعتبر است.");
   }
 
-  const latestPath = `data/forms/${formId}/latest.json`;
+  const db = getDb();
 
-  if (token) {
-    // 1. Fetch current latest version from GitHub to determine revision and original createdAt
-    const existing = await getGitHubFile(latestPath);
-    const prevData: FormResponseData | null = existing?.content || null;
+  // Check previous record in DB
+  const prevRow: any = db
+    .prepare("SELECT revision, created_at FROM forms WHERE form_id = ?")
+    .get(formId);
 
-    const revision = (prevData?.revision || 0) + 1;
-    const createdAt = prevData?.createdAt || now;
+  const revision = (prevRow?.revision || 0) + 1;
+  const createdAt = prevRow?.created_at || now;
 
-    const fullData: FormResponseData = {
-      ...payload,
-      createdAt,
-      updatedAt: now,
-      revision,
-    };
+  const fullData: FormResponseData = {
+    ...payload,
+    createdAt,
+    updatedAt: now,
+    revision,
+  };
 
-    // 2. Save version snapshot: data/forms/<formId>/versions/<timestamp>-rev<revision>.json
-    const timestamp = Date.now();
-    const versionPath = `data/forms/${formId}/versions/${timestamp}-rev${revision}.json`;
+  // 1. Save into Server SQLite Database (Instant & Atomic)
+  const upsert = db.prepare(`
+    INSERT INTO forms (form_id, revision, current_step, is_submitted, answers, other_answers, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(form_id) DO UPDATE SET
+      revision = excluded.revision,
+      current_step = excluded.current_step,
+      is_submitted = excluded.is_submitted,
+      answers = excluded.answers,
+      other_answers = excluded.other_answers,
+      updated_at = excluded.updated_at
+  `);
 
-    await putGitHubFile(
-      versionPath,
-      fullData,
-      `Form ${formId}: create snapshot rev ${revision}`
-    );
+  upsert.run(
+    fullData.formId,
+    fullData.revision,
+    fullData.currentStep,
+    fullData.isSubmitted ? 1 : 0,
+    JSON.stringify(fullData.answers || {}),
+    JSON.stringify(fullData.otherAnswers || {}),
+    fullData.createdAt,
+    fullData.updatedAt
+  );
 
-    // 3. Save latest: data/forms/<formId>/latest.json
-    await putGitHubFile(
-      latestPath,
-      fullData,
-      `Form ${formId}: update latest rev ${revision}`,
-      existing?.sha
-    );
+  // 2. Save snapshot in database
+  const insertSnapshot = db.prepare(`
+    INSERT INTO form_snapshots (form_id, revision, current_step, is_submitted, answers, other_answers, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
 
-    return {
-      success: true,
-      formId,
-      revision,
-      updatedAt: now,
-      storageType: "github",
-    };
-  } else {
-    // Local fallback for local development when token is not present
-    let prevData: FormResponseData | null = null;
-    const localLatest = path.join(LOCAL_DATA_DIR, formId, "latest.json");
-    if (fs.existsSync(localLatest)) {
-      try {
-        prevData = JSON.parse(fs.readFileSync(localLatest, "utf-8"));
-      } catch {
-        // ignore
-      }
-    }
+  insertSnapshot.run(
+    fullData.formId,
+    fullData.revision,
+    fullData.currentStep,
+    fullData.isSubmitted ? 1 : 0,
+    JSON.stringify(fullData.answers || {}),
+    JSON.stringify(fullData.otherAnswers || {}),
+    fullData.updatedAt
+  );
 
-    const revision = (prevData?.revision || 0) + 1;
-    const createdAt = prevData?.createdAt || now;
+  // 3. Local JSON file backup
+  saveLocalFileBackup(fullData);
 
-    const fullData: FormResponseData = {
-      ...payload,
-      createdAt,
-      updatedAt: now,
-      revision,
-    };
-
-    return saveLocally(fullData);
+  // 4. ONLY send to GitHub if the form is fully SUBMITTED (isSubmitted === true)
+  // Intermediate auto-saves are kept on the server to prevent GitHub rate-limits!
+  let syncedToGit = false;
+  if (fullData.isSubmitted) {
+    syncedToGit = await syncFinalVersionToGitHub(fullData);
   }
+
+  return {
+    success: true,
+    formId,
+    revision,
+    updatedAt: now,
+    storageType: "database",
+    syncedToGit,
+    message: fullData.isSubmitted
+      ? (syncedToGit ? "با موفقیت در دیتابیس ثبت و نسخه نهایی به گیت ارسال شد." : "در دیتابیس سرور با موفقیت ثبت نهایی شد.")
+      : "در دیتابیس سرور ذخیره شد.",
+  };
 }
 
 // Get form data by ID
@@ -273,29 +315,102 @@ export async function getFormData(formId: string): Promise<FormResponseData | nu
     return null;
   }
 
-  const { token } = getGitHubConfig();
-  const latestPath = `data/forms/${formId}/latest.json`;
-
-  if (token) {
-    const file = await getGitHubFile(latestPath);
-    return file?.content || null;
-  } else {
-    const localLatest = path.join(LOCAL_DATA_DIR, formId, "latest.json");
-    if (fs.existsSync(localLatest)) {
-      try {
-        return JSON.parse(fs.readFileSync(localLatest, "utf-8"));
-      } catch {
-        return null;
-      }
+  // 1. Check SQLite Database first (sub-millisecond)
+  try {
+    const db = getDb();
+    const row: any = db.prepare("SELECT * FROM forms WHERE form_id = ?").get(formId);
+    if (row) {
+      return {
+        formId: row.form_id,
+        revision: row.revision,
+        currentStep: row.current_step,
+        isSubmitted: Boolean(row.is_submitted),
+        answers: JSON.parse(row.answers || "{}"),
+        otherAnswers: JSON.parse(row.other_answers || "{}"),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
     }
-    return null;
+  } catch (err) {
+    console.error("Database query error in getFormData:", err);
   }
+
+  // 2. Check Local File Backup
+  const localLatest = path.join(LOCAL_DATA_DIR, formId, "latest.json");
+  if (fs.existsSync(localLatest)) {
+    try {
+      return JSON.parse(fs.readFileSync(localLatest, "utf-8"));
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Check GitHub fallback
+  const { token } = getGitHubConfig();
+  if (token) {
+    const file = await getGitHubFile(`data/forms/${formId}/latest.json`);
+    return file?.content || null;
+  }
+
+  return null;
 }
 
 // List all forms for admin
-export async function listAllForms(): Promise<Array<{ formId: string; updatedAt: string; revision: number; isSubmitted: boolean }>> {
-  const { token, branch } = getGitHubConfig();
+export async function listAllForms(): Promise<
+  Array<{ formId: string; updatedAt: string; revision: number; isSubmitted: boolean }>
+> {
+  // 1. Read from SQLite Database
+  try {
+    const db = getDb();
+    const rows: any[] = db
+      .prepare(
+        "SELECT form_id, updated_at, revision, is_submitted FROM forms ORDER BY updated_at DESC"
+      )
+      .all();
 
+    if (rows && rows.length > 0) {
+      return rows.map((r) => ({
+        formId: r.form_id,
+        updatedAt: r.updated_at,
+        revision: r.revision,
+        isSubmitted: Boolean(r.is_submitted),
+      }));
+    }
+  } catch (err) {
+    console.error("Database query error in listAllForms:", err);
+  }
+
+  // 2. Fallback to Local Files
+  if (fs.existsSync(LOCAL_DATA_DIR)) {
+    try {
+      const entries = fs.readdirSync(LOCAL_DATA_DIR, { withFileTypes: true });
+      const results: any[] = [];
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const form = await getFormData(entry.name);
+          if (form) {
+            results.push({
+              formId: form.formId,
+              updatedAt: form.updatedAt,
+              revision: form.revision,
+              isSubmitted: form.isSubmitted,
+            });
+          }
+        }
+      }
+      if (results.length > 0) {
+        return results.sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Fallback to GitHub
+  const { token, branch } = getGitHubConfig();
   if (token) {
     try {
       const res = await githubRequest(`/contents/data/forms?ref=${branch}`);
@@ -316,28 +431,13 @@ export async function listAllForms(): Promise<Array<{ formId: string; updatedAt:
           }
         }
       }
-      return results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      return results.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
     } catch {
       return [];
     }
-  } else {
-    if (!fs.existsSync(LOCAL_DATA_DIR)) return [];
-    const entries = fs.readdirSync(LOCAL_DATA_DIR, { withFileTypes: true });
-    const results: any[] = [];
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const form = await getFormData(entry.name);
-        if (form) {
-          results.push({
-            formId: form.formId,
-            updatedAt: form.updatedAt,
-            revision: form.revision,
-            isSubmitted: form.isSubmitted,
-          });
-        }
-      }
-    }
-    return results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }
+
+  return [];
 }
