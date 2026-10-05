@@ -75,7 +75,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-mono text-xs font-bold flex items-center justify-center mt-0.5">
             {question.subId ? question.subId : question.id}
           </span>
-          <div className="flex flex-col">
+          <div className="flex flex-col flex-1">
             <h3 className="font-iransans font-medium text-slate-100 text-sm sm:text-base leading-relaxed">
               {question.title}
               {question.required && (
@@ -84,11 +84,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </span>
               )}
             </h3>
-            <span className="text-[11px] text-slate-400 mt-1">
+            <span className="text-[11px] text-slate-400 mt-0.5">
               {question.type === "T" && "یک گزینه را انتخاب کنید"}
               {question.type === "M" && "امکان انتخاب چند گزینه هم‌زمان"}
               {question.type === "OPEN" && "پاسخ تشریحی (اختیاری)"}
             </span>
+
+            {question.description && (
+              <div className="flex items-start gap-2.5 mt-2.5 p-3 rounded-xl bg-indigo-950/25 border border-indigo-500/15 text-slate-300 text-xs sm:text-[13px] leading-relaxed">
+                <HelpCircle className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <span className="font-iransans leading-relaxed">{question.description}</span>
+              </div>
+            )}
           </div>
         </div>
 
