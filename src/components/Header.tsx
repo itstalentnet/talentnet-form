@@ -13,12 +13,18 @@ interface HeaderProps {
   formId?: string;
   currentStep?: number;
   totalSteps?: number;
+  formPath?: string;
+  resultPath?: string;
+  subtitle?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   saveStatus = "idle",
   onRetrySave,
   formId,
+  formPath = "/form1",
+  resultPath = "/form1/result",
+  subtitle = "پرسش‌نامه شفاف‌سازی پروژه",
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -37,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Brand: Pure Logo & Elegant Typography */}
         <Link
-          href="/form1"
+          href={formPath}
           className="flex items-center gap-3.5 group select-none"
         >
           {/* Pure SVG Logo with natural soft aura, completely borderless */}
@@ -60,8 +66,8 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-xs sm:text-sm font-light text-indigo-400 font-mono tracking-wider">
               Form
             </span>
-            <span className="hidden md:inline-block text-[11px] text-slate-500 font-iransans border-r border-slate-800 pr-2 mr-1">
-              پرسش‌نامه شفاف‌سازی پروژه
+            <span className="hidden md:inline-block max-w-[320px] truncate text-[11px] text-slate-500 font-iransans border-r border-slate-800 pr-2 mr-1">
+              {subtitle}
             </span>
           </div>
         </Link>
@@ -133,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Admin Result Link */}
           <Link
-            href="/form1/result"
+            href={resultPath}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition-all text-xs border border-transparent hover:border-white/[0.06]"
             title="ورود به پنل نتایج مدیر"
           >

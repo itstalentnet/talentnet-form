@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { SECTIONS } from "@/data/questions";
+import type { Section } from "@/data/questions";
 import { Check } from "lucide-react";
 
 interface ProgressBarProps {
+  sections: Section[];
   currentSectionIndex: number;
   totalSections: number;
   onSelectSection: (index: number) => void;
@@ -12,12 +13,13 @@ interface ProgressBarProps {
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
+  sections,
   currentSectionIndex,
   totalSections,
   onSelectSection,
   completedSectionIndices,
 }) => {
-  const currentSection = SECTIONS[currentSectionIndex];
+  const currentSection = sections[currentSectionIndex];
   const progressPercent = Math.round(
     ((currentSectionIndex + 1) / totalSections) * 100
   );
@@ -59,7 +61,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 
         {/* Micro-steps bar for mobile/desktop scrolling */}
         <div className="flex items-center justify-between gap-1.5 mt-2.5 overflow-x-auto no-scrollbar py-0.5">
-          {SECTIONS.map((sec, idx) => {
+          {sections.map((sec, idx) => {
             const isCurrent = idx === currentSectionIndex;
             const isCompleted = completedSectionIndices.includes(idx);
             const canNavigate = isCompleted || idx <= currentSectionIndex;

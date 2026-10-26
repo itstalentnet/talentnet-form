@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { FORM_META } from "@/data/questions";
+import type { FormMeta } from "@/data/formTypes";
 import { CheckCircle2, Copy, Check, Download, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 
 interface CompletionViewProps {
@@ -13,6 +13,7 @@ interface CompletionViewProps {
   onReviewAnswers: () => void;
   answers: Record<string, any>;
   otherAnswers: Record<string, string>;
+  meta: FormMeta;
 }
 
 export const CompletionView: React.FC<CompletionViewProps> = ({
@@ -24,6 +25,7 @@ export const CompletionView: React.FC<CompletionViewProps> = ({
   onReviewAnswers,
   answers,
   otherAnswers,
+  meta,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -71,7 +73,7 @@ export const CompletionView: React.FC<CompletionViewProps> = ({
       {/* Official Confirmation message */}
       <div className="glass-panel p-6 sm:p-7 rounded-2xl border border-indigo-500/30 text-slate-200 text-base sm:text-lg font-iransans leading-relaxed mb-8 max-w-2xl mx-auto">
         <p className="font-medium text-indigo-100">
-          «{FORM_META.confirmationMessage}»
+          «{meta.confirmationMessage}»
         </p>
       </div>
 

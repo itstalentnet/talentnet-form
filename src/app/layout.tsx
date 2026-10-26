@@ -3,8 +3,9 @@ import { iranSans, morabba } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TalentNet Form | شفاف‌سازی پروژه پلتفرم مشاوره روان‌شناسی",
-  description: "سامانه پرسش‌نامه آنلاین و مرحله‌به‌مرحله استخراج نیازمندی‌های محصولی و فنی",
+  title: "TalentNet Form | پرسش‌نامه شناخت پروژه",
+  description:
+    "سامانه پرسش‌نامه آنلاین و مرحله‌به‌مرحله استخراج نیازمندی‌های محصولی، تجربه کاربری و فنی",
   icons: {
     icon: "/icon.svg",
   },

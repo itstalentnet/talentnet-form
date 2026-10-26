@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { PROJECT_INTRO } from "@/data/questions";
+import type { FormIntroConfig } from "@/data/formTypes";
+import type { Section } from "@/data/questions";
 import {
   ArrowLeft,
   Sparkles,
@@ -12,14 +13,29 @@ import {
   FileCheck2,
   Layers,
   ArrowUpRight,
+  Building2,
+  Globe2,
+  Users,
 } from "lucide-react";
 
 interface IntroViewProps {
   onStart: () => void;
   formId: string;
+  intro: FormIntroConfig;
+  sections: Section[];
 }
 
-export const IntroView: React.FC<IntroViewProps> = ({ onStart }) => {
+export const IntroView: React.FC<IntroViewProps> = ({
+  onStart,
+  intro,
+  sections,
+}) => {
+  const totalQuestions = sections.reduce(
+    (sum, section) => sum + section.questions.length,
+    0
+  );
+  const faNumber = (value: number) => value.toLocaleString("fa-IR");
+
   const getSectionIcon = (id: string) => {
     switch (id) {
       case "positioning":
@@ -28,6 +44,12 @@ export const IntroView: React.FC<IntroViewProps> = ({ onStart }) => {
         return <Target className="w-5 h-5 text-emerald-400" />;
       case "product-cycle":
         return <Workflow className="w-5 h-5 text-amber-400" />;
+      case "company":
+        return <Building2 className="w-5 h-5 text-indigo-400" />;
+      case "current-site":
+        return <Globe2 className="w-5 h-5 text-sky-400" />;
+      case "audience-market":
+        return <Users className="w-5 h-5 text-emerald-400" />;
       case "summary":
         return <CheckCircle2 className="w-5 h-5 text-cyan-400" />;
       default:
@@ -41,26 +63,26 @@ export const IntroView: React.FC<IntroViewProps> = ({ onStart }) => {
       <div className="flex flex-col items-center text-center mb-8">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-4">
           <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-          <span>{PROJECT_INTRO.headerBadge}</span>
+          <span>{intro.headerBadge}</span>
         </div>
 
         <h1 className="font-morabba font-bold text-2xl sm:text-4xl text-white mb-3 tracking-tight leading-snug">
-          {PROJECT_INTRO.greeting}
+          {intro.greeting}
         </h1>
 
         {/* Quick specs pill */}
         <div className="flex flex-wrap items-center justify-center gap-3 mt-4 text-xs text-slate-300 font-iransans">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
             <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span>۱۲ بخش تخصصی</span>
+            <span>{faNumber(sections.length)} بخش تخصصی</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
             <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>۵۸ سؤال کاربردی و دقیق</span>
+            <span>{faNumber(totalQuestions)} سؤال کاربردی و دقیق</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>ذخیره خودکار مرحله‌به‌مرحله</span>
+            <span>{intro.highlight || "ذخیره خودکار مرحله‌به‌مرحله"}</span>
           </div>
         </div>
       </div>
@@ -70,7 +92,7 @@ export const IntroView: React.FC<IntroViewProps> = ({ onStart }) => {
         <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="space-y-4 text-slate-200 text-sm sm:text-[15px] leading-relaxed font-iransans text-justify">
-          {PROJECT_INTRO.introParagraphs.map((p, idx) => (
+          {intro.introParagraphs.map((p, idx) => (
             <p key={idx} className="leading-relaxed">
               {p}
             </p>
@@ -80,7 +102,7 @@ export const IntroView: React.FC<IntroViewProps> = ({ onStart }) => {
 
       {/* Structured Sections (Positioning, Target, Cycle, Summary) */}
       <div className="space-y-6 mb-8">
-        {PROJECT_INTRO.sections.map((sec) => (
+        {intro.sections.map((sec) => (
           <div
             key={sec.id}
             className="glass-panel rounded-2xl p-6 sm:p-7 border border-slate-800/90 shadow-xl relative overflow-hidden hover:border-slate-700/70 transition-all bg-slate-900/60"
