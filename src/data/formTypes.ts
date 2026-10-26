@@ -24,8 +24,10 @@ export interface FormMeta {
 }
 
 export interface FormConfig {
-  /** Route slug, e.g. "form1" or "form2". */
+  /** Public route slug, e.g. "form1" or a client-specific path. */
   slug: string;
+  /** Admin results route for this form. */
+  resultPath: string;
   /** Prefix used for localStorage keys. */
   storageKey: string;
   /** Prefix used when generating a new form id. */

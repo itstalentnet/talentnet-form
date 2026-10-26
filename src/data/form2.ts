@@ -1,7 +1,8 @@
 import type { FormConfig } from "./formTypes";
 
 export const FORM2_CONFIG: FormConfig = {
-  slug: "form2",
+  slug: "andisheh-farda",
+  resultPath: "/andisheh-farda/review",
   storageKey: "tnf2",
   idPrefix: "tnf2_",
   meta: {

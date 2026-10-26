@@ -331,7 +331,7 @@ function FormContent({ config }: { config: FormConfig }) {
         currentStep={currentStep + 1}
         totalSteps={totalSections}
         formPath={`/${config.slug}`}
-        resultPath={`/${config.slug}/result`}
+        resultPath={config.resultPath}
         subtitle={config.meta.subtitle}
       />
 

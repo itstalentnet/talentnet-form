@@ -8,6 +8,7 @@ import type { FormConfig } from "./formTypes";
 
 export const FORM1_CONFIG: FormConfig = {
   slug: "form1",
+  resultPath: "/form1/result",
   storageKey: "tnf",
   idPrefix: "tnf_",
   intro: {

@@ -396,7 +396,7 @@ export default function AdminResultPage({
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                               {item.formId.startsWith(FORM2_CONFIG.idPrefix)
-                                ? "فرم ۲"
+                                ? "اندیشه فردا"
                                 : "فرم ۱"}
                             </span>
                             {item.isSubmitted ? (

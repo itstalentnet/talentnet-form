@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: FORM2_CONFIG.meta.subtitle,
 };
 
-export default function Form2Page() {
+export default function AndishehFardaPage() {
   return <FormRunner config={FORM2_CONFIG} />;
 }
